@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal-BERT+NER · Grupo 4 · Senac</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+:root {
+  --bg:     #07101f;
+  --card:   #0e1f35;
+  --card2:  #122640;
+  --border: #1c3554;
+  --accent: #38bdf8;
+  --green:  #34d399;
+  --yellow: #fbbf24;
+  --red:    #f87171;
+  --purple: #a78bfa;
+  --text:   #e8f2ff;
+  --sub:    #6b90b5;
+  --mono:   'IBM Plex Mono', monospace;
+  --sans:   'Plus Jakarta Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); }
+body::before {
+  content:''; position:fixed; inset:0; z-index:0;
+  background-image: radial-gradient(rgba(56,189,248,.1) 1px, transparent 1px);
+  background-size: 30px 30px; pointer-events:none;
+}
+.page { position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 22px 80px; }
+
+/* ── HEADER ── */
+header { padding:52px 0 40px; border-bottom:1px solid var(--border); margin-bottom:52px; }
+.htag {
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:var(--mono); font-size:11px; color:var(--accent);
+  background:rgba(56,189,248,.08); border:1px solid rgba(56,189,248,.22);
+  border-radius:5px; padding:5px 13px; margin-bottom:20px; letter-spacing:.07em;
+}
+.dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
+h1 { font-size:clamp(24px,3.5vw,40px); font-weight:800; line-height:1.15; margin-bottom:14px; }
+h1 em { font-style:normal; color:var(--accent); }
+.hsub { font-size:15px; color:var(--sub); max-width:640px; line-height:1.72; }
+.hsub strong { color:var(--text); }
+
+/* ── SECTION LABEL ── */
+.sl {
+  display:flex; align-items:center; gap:12px;
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent); margin-bottom:24px;
+}
+.sl::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── EXPLAINER CARDS ── */
+.egrid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:56px; }
+@media(max-width:600px){ .egrid { grid-template-columns:1fr; } }
+.ecard {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:26px 22px;
+}
+.ecard .ico { font-size:28px; margin-bottom:12px; display:block; }
+.ecard h3 { font-size:15px; font-weight:700; margin-bottom:10px; }
+.ecard p  { font-size:13.5px; color:var(--sub); line-height:1.75; }
+.ecard p strong { color:var(--text); }
+
+/* ── PIPELINE ── */
+.pipe {
+  display:flex; border:1px solid var(--border); border-radius:12px;
+  overflow:hidden; margin-bottom:56px;
+}
+.ps {
+  flex:1; min-width:140px; padding:22px 16px;
+  border-right:1px solid var(--border); background:var(--card);
+  position:relative; transition:background .25s;
+}
+.ps:last-child { border-right:none; }
+.ps.on { background:rgba(56,189,248,.09); }
+.ps.on::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; background:var(--accent); }
+.ps-n { font-family:var(--mono); font-size:10px; color:var(--sub); letter-spacing:.09em; margin-bottom:9px; }
+.ps-i { font-size:24px; display:block; margin-bottom:9px; }
+.ps-t { font-size:13px; font-weight:700; margin-bottom:5px; }
+.ps-d { font-size:11.5px; color:var(--sub); line-height:1.5; }
+
+/* ── LEVELS ── */
+.lgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:56px; }
+@media(max-width:680px){ .lgrid { grid-template-columns:1fr 1fr; } }
+.lcard {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:20px 16px; border-top:4px solid;
+}
+.lcard .ln { font-size:16px; font-weight:800; margin-bottom:6px; }
+.lcard .li { font-family:var(--mono); font-size:10px; color:var(--sub); margin-bottom:10px; }
+.lcard .le { font-size:12px; color:var(--sub); line-height:1.65; margin-bottom:12px; }
+.lcard .ld { font-size:12px; font-weight:600; }
+.lcard .la { font-family:var(--mono); font-size:10px; color:var(--sub); margin-top:7px; }
+
+/* ── DEMO ── */
+.dgrid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:56px; }
+@media(max-width:680px){ .dgrid { grid-template-columns:1fr; } }
+.panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; }
+.ptitle { font-size:14px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+
+/* samples */
+.samps { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+.sbtn {
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:8px; padding:11px 14px; color:var(--text);
+  font-family:var(--sans); font-size:13px; cursor:pointer;
+  text-align:left; line-height:1.5; transition:border-color .2s, background .2s;
+}
+.sbtn:hover { border-color:var(--accent); background:rgba(56,189,248,.07); }
+.sbtn.sel   { border-color:var(--accent); background:rgba(56,189,248,.1); }
+.stag {
+  display:inline-block; font-family:var(--mono); font-size:9px; font-weight:600;
+  border-radius:4px; padding:2px 7px; margin-right:6px; letter-spacing:.05em;
+  border:1px solid; vertical-align:middle;
+}
+textarea {
+  width:100%; background:var(--card2); border:1px solid var(--border);
+  border-radius:8px; color:var(--text); font-family:var(--mono); font-size:12px;
+  padding:12px; resize:vertical; min-height:90px; line-height:1.6;
+  outline:none; transition:border-color .2s;
+}
+textarea:focus { border-color:var(--accent); }
+textarea::placeholder { color:var(--sub); }
+.rbtn {
+  margin-top:12px; width:100%;
+  background:var(--accent); color:var(--bg);
+  border:none; border-radius:8px; padding:13px;
+  font-family:var(--sans); font-weight:700; font-size:14px;
+  cursor:pointer; letter-spacing:.02em; transition:opacity .15s;
+}
+.rbtn:hover { opacity:.88; }
+
+/* result */
+.rph {
+  min-height:280px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:10px;
+  color:var(--sub); text-align:center; font-size:13px;
+}
+.rph .phi { font-size:44px; opacity:.22; }
+.rstack { display:flex; flex-direction:column; gap:14px; }
+
+.chero {
+  border-radius:10px; border-left:5px solid;
+  padding:18px 20px; display:flex; align-items:center; gap:16px;
+}
+.ch-icon { font-size:34px; }
+.ch-lbl  { font-family:var(--mono); font-size:10px; color:var(--sub); letter-spacing:.09em; margin-bottom:3px; }
+.ch-name { font-size:28px; font-weight:800; line-height:1; }
+.ch-conf { font-family:var(--mono); font-size:11px; margin-top:5px; opacity:.65; }
+
+.rbox { background:var(--card2); border-radius:8px; padding:14px 16px; }
+.rbtl { font-family:var(--mono); font-size:10px; color:var(--sub); letter-spacing:.1em; text-transform:uppercase; margin-bottom:10px; }
+
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip {
+  display:inline-flex; align-items:center; gap:5px;
+  border:1px solid; border-radius:5px; padding:4px 9px;
+  font-family:var(--mono); font-size:11px;
+}
+.chip .ct { font-size:9px; opacity:.65; letter-spacing:.04em; }
+
+.srow { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+.srow:last-child { margin-bottom:0; }
+.sl2 { font-family:var(--mono); font-size:11px; color:var(--sub); width:112px; flex-shrink:0; }
+.sbg { flex:1; height:8px; background:rgba(255,255,255,.05); border-radius:4px; overflow:hidden; }
+.sfill { height:100%; border-radius:4px; transition:width 1s cubic-bezier(.4,0,.2,1); }
+.sval { font-family:var(--mono); font-size:11px; color:var(--text); width:38px; text-align:right; }
+
+.dlpb { border-radius:8px; padding:14px 16px; display:flex; align-items:flex-start; gap:12px; }
+.dlp-t { font-size:13px; font-weight:700; margin-bottom:4px; }
+.dlp-d { font-size:12px; color:var(--sub); line-height:1.6; }
+
+.reason { font-size:13px; color:var(--sub); line-height:1.75; border-left:3px solid var(--border); padding-left:14px; }
+
+.ltags { display:flex; flex-wrap:wrap; gap:6px; }
+.ltag {
+  font-family:var(--mono); font-size:10px;
+  border:1px solid var(--border); border-radius:4px;
+  padding:3px 9px; color:var(--sub); letter-spacing:.03em;
+}
+
+/* ── METRICS ── */
+.mrow { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:56px; }
+.mc {
+  flex:1; min-width:140px;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:22px 16px; text-align:center;
+}
+.mc .mv { font-size:32px; font-weight:800; color:var(--accent); line-height:1; }
+.mc .ml { font-size:12px; color:var(--sub); margin-top:7px; line-height:1.55; }
+
+/* ── TEAM ── */
+.tgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:56px; }
+@media(max-width:680px){ .tgrid { grid-template-columns:1fr 1fr; } }
+@media(max-width:420px){ .tgrid { grid-template-columns:1fr; } }
+
+.tcard {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:14px; padding:22px 16px; text-align:center;
+}
+.tav {
+  width:58px; height:58px; border-radius:50%;
+  margin:0 auto 14px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; font-weight:800; color:#fff;
+  border:2px solid rgba(255,255,255,.12);
+}
+.tname { font-size:14px; font-weight:700; color:var(--text); margin-bottom:14px; line-height:1.35; }
+
+.tlinks { display:flex; flex-direction:column; gap:7px; }
+.tlink {
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--mono); font-size:10.5px; color:var(--sub);
+  text-decoration:none; padding:7px 10px; border-radius:7px;
+  border:1px solid var(--border); background:var(--card2);
+  transition:border-color .2s, color .2s; text-align:left;
+  word-break:break-all; letter-spacing:.01em;
+}
+.tlink:hover { border-color:var(--accent); color:var(--accent); }
+.tlink-icon { font-size:14px; flex-shrink:0; }
+.tlink-label { font-size:9px; opacity:.55; display:block; margin-bottom:1px; letter-spacing:.05em; text-transform:uppercase; }
+.tlink-val { color:var(--text); font-size:10.5px; }
+
+/* ── FOOTER ── */
+footer {
+  border-top:1px solid var(--border); padding-top:24px;
+  font-size:12px; color:var(--sub);
+  display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px;
+}
+footer strong { color:var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<header>
+  <div class="htag"><span class="dot"></span> DEMONSTRAÇÃO LOCAL · GRUPO 4 · SENAC SANTO AMARO · 2026</div>
+  <h1>Como o <em>Legal-BERT+NER</em><br>classifica dados sensíveis</h1>
+  <p class="hsub">
+    Visualização do modelo proposto no artigo
+    <strong>"IA na Governança de Dados: Classificação Automatizada e Mitigação de Riscos em Ambientes Financeiros"</strong> —
+    em conformidade com <strong>LGPD</strong> e <strong>ISO/IEC 27001:2022</strong>.
+  </p>
+</header>
+
+<!-- O QUE É -->
+<div class="sl">O que é esse modelo?</div>
+<div class="egrid">
+  <div class="ecard">
+    <span class="ico">🧠</span>
+    <h3>BERT — o cérebro linguístico</h3>
+    <p>Modelo do Google que lê o texto <strong>nas duas direções</strong> — para frente e para trás — para entender o contexto completo de cada palavra. É como um leitor especializado que nunca cansa e processa milhares de documentos por segundo.</p>
+  </div>
+  <div class="ecard">
+    <span class="ico">⚖️</span>
+    <h3>Legal-BERT — o especialista jurídico</h3>
+    <p>É o BERT <strong>re-treinado com documentos jurídicos e regulatórios</strong>. Compreende termos como "dado pessoal sensível", "controlador" e "finalidade" no sentido exato da LGPD e das normas ISO — não apenas como palavras, mas como conceitos legais.</p>
+  </div>
+  <div class="ecard">
+    <span class="ico">🔍</span>
+    <h3>NER — reconhecendo entidades</h3>
+    <p><strong>Named Entity Recognition</strong>: identifica e rotula automaticamente CPFs, dados de saúde, valores financeiros, cláusulas contratuais e órgãos reguladores dentro do texto — como um grifador inteligente que sabe o que cada palavra representa.</p>
+  </div>
+  <div class="ecard">
+    <span class="ico">✅</span>
+    <h3>Por que o "+" faz diferença?</h3>
+    <p>Juntos, Legal-BERT+NER <strong>classifica E explica</strong>: identifica quais entidades motivaram a decisão, gerando a rastreabilidade exigida pelo <strong>art. 20 da LGPD</strong> — o direito do titular à revisão de toda decisão automatizada.</p>
+  </div>
+</div>
+
+<!-- PIPELINE -->
+<div class="sl">Como o texto é processado — passo a passo</div>
+<div class="pipe" id="pipe" style="overflow-x:auto; margin-bottom:56px;">
+  <div class="ps" id="p1">
+    <div class="ps-n">PASSO 01</div>
+    <span class="ps-i">📄</span>
+    <div class="ps-t">Entrada</div>
+    <div class="ps-d">Documento, e-mail, contrato ou dado em trânsito é capturado</div>
+  </div>
+  <div class="ps" id="p2">
+    <div class="ps-n">PASSO 02</div>
+    <span class="ps-i">✂️</span>
+    <div class="ps-t">Tokenização</div>
+    <div class="ps-d">Texto dividido em unidades semânticas que o modelo interpreta</div>
+  </div>
+  <div class="ps" id="p3">
+    <div class="ps-n">PASSO 03</div>
+    <span class="ps-i">🔍</span>
+    <div class="ps-t">NER</div>
+    <div class="ps-d">Entidades identificadas: CPF, dado de saúde, valor, cláusula…</div>
+  </div>
+  <div class="ps" id="p4">
+    <div class="ps-n">PASSO 04</div>
+    <span class="ps-i">🧠</span>
+    <div class="ps-t">Legal-BERT</div>
+    <div class="ps-d">Análise contextual e classificação ISO: Público → Sensível</div>
+  </div>
+  <div class="ps" id="p5">
+    <div class="ps-n">PASSO 05</div>
+    <span class="ps-i">🛡️</span>
+    <div class="ps-t">Ação DLP</div>
+    <div class="ps-d">Sistema bloqueia, alerta ou libera + registra auditoria</div>
+  </div>
+</div>
+
+<!-- NÍVEIS -->
+<div class="sl">Os 4 níveis de classificação — ISO/IEC 27001 + LGPD</div>
+<div class="lgrid">
+  <div class="lcard" style="border-top-color:var(--green)">
+    <div class="ln" style="color:var(--green)">🟢 Público</div>
+    <div class="li">ISO A.5.12 · Nível 1</div>
+    <div class="le">Relatórios anuais, comunicados ao mercado — sem restrição de acesso</div>
+    <div class="ld" style="color:var(--green)">→ Monitoramento passivo</div>
+    <div class="la">LGPD art. 7º</div>
+  </div>
+  <div class="lcard" style="border-top-color:var(--accent)">
+    <div class="ln" style="color:var(--accent)">🔵 Privado</div>
+    <div class="li">ISO A.5.12 · Nível 2</div>
+    <div class="le">Políticas internas, procedimentos operacionais — uso interno apenas</div>
+    <div class="ld" style="color:var(--accent)">→ Alerta ao usuário</div>
+    <div class="la">LGPD art. 46</div>
+  </div>
+  <div class="lcard" style="border-top-color:var(--yellow)">
+    <div class="ln" style="color:var(--yellow)">🟡 Confidencial</div>
+    <div class="li">ISO A.5.12 · Nível 3</div>
+    <div class="le">Contratos, dados de clientes — exposição causa dano à organização</div>
+    <div class="ld" style="color:var(--yellow)">→ Bloqueio + Log</div>
+    <div class="la">LGPD art. 46 + art. 48</div>
+  </div>
+  <div class="lcard" style="border-top-color:var(--red)">
+    <div class="ln" style="color:var(--red)">🔴 Sensível</div>
+    <div class="li">ISO A.5.12 · Nível 4</div>
+    <div class="le">Biometria, saúde, crédito — exposição causa dano direto ao titular</div>
+    <div class="ld" style="color:var(--red)">→ Bloqueio + Notifica DPO</div>
+    <div class="la">LGPD art. 5º,II · art. 11 · art. 52</div>
+  </div>
+</div>
+
+<!-- DEMO -->
+<div class="sl">Classificação em tempo real — experimente</div>
+<div class="dgrid">
+
+  <!-- INPUT -->
+  <div class="panel">
+    <div class="ptitle">💬 Exemplos do contexto financeiro</div>
+    <div class="samps">
+      <button class="sbtn" onclick="pick(this,0)">
+        <span class="stag" style="color:var(--green);border-color:var(--green);background:rgba(52,211,153,.12)">PÚBLICO</span>
+        Relatório anual de sustentabilidade 2024 — disponível no site institucional para todos os stakeholders e investidores.
+      </button>
+      <button class="sbtn" onclick="pick(this,1)">
+        <span class="stag" style="color:var(--accent);border-color:var(--accent);background:rgba(56,189,248,.12)">PRIVADO</span>
+        Circular interna nº 042/2025 — procedimento de abertura de conta pessoa jurídica. Uso restrito às equipes de backoffice.
+      </button>
+      <button class="sbtn" onclick="pick(this,2)">
+        <span class="stag" style="color:var(--yellow);border-color:var(--yellow);background:rgba(251,191,36,.12)">CONFID.</span>
+        Contrato nº 2025-1183 com XYZ Ltda, valor R$ 2.400.000,00, vigência 36 meses, com cláusula de exclusividade e sigilo.
+      </button>
+      <button class="sbtn" onclick="pick(this,3)">
+        <span class="stag" style="color:var(--red);border-color:var(--red);background:rgba(248,113,113,.12)">SENSÍVEL</span>
+        Cliente Maria da Silva, CPF 123.456.789-00, portadora de diabetes tipo 2, score de crédito 420. Dados biométricos cadastrados.
+      </button>
+      <button class="sbtn" onclick="pick(this,4)">
+        <span class="stag" style="color:var(--red);border-color:var(--red);background:rgba(248,113,113,.12)">SENSÍVEL</span>
+        Colaborador João P., matrícula 00892 — laudo psicocomportamental, avaliação de saúde mental e histórico disciplinar.
+      </button>
+    </div>
+
+    <div style="font-size:12px;color:var(--sub);margin-bottom:8px">✏️ Ou escreva seu próprio texto:</div>
+    <textarea id="txt" placeholder="Digite um trecho de documento financeiro, e-mail, contrato ou política interna…"></textarea>
+    <button class="rbtn" onclick="classify()">⚡ Classificar com Legal-BERT+NER</button>
+  </div>
+
+  <!-- RESULTADO -->
+  <div class="panel">
+    <div class="ptitle">📊 Resultado da análise</div>
+    <div id="res">
+      <div class="rph">
+        <div class="phi">🔬</div>
+        <span>Selecione um exemplo ou escreva um texto<br>e clique em <strong style="color:var(--accent)">Classificar</strong></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MÉTRICAS -->
+<div class="sl">Desempenho comprovado — Battu (2025)</div>
+<div class="mrow">
+  <div class="mc"><div class="mv">93,1%</div><div class="ml">Precisão<br>Legal-BERT+NER</div></div>
+  <div class="mc"><div class="mv">91,7%</div><div class="ml">Recall<br>Legal-BERT+NER</div></div>
+  <div class="mc"><div class="mv">92,4%</div><div class="ml">F1-Score<br>Legal-BERT+NER</div></div>
+  <div class="mc"><div class="mv">90,8%</div><div class="ml">Acurácia de<br>Conformidade</div></div>
+  <div class="mc"><div class="mv" style="color:var(--green)">−40%</div><div class="ml">Redução de<br>trabalho manual</div></div>
+</div>
+
+<!-- EQUIPE -->
+<div class="sl">Autores — Grupo 4</div>
+<div class="tgrid">
+
+  <div class="tcard">
+    <div class="tav" style="background:linear-gradient(135deg,#38bdf8,#6366f1)">M</div>
+    <div class="tname">Matheus Avolio Sedel</div>
+    <div class="tlinks">
+      <a class="tlink" href="mailto:avoliomatheus.sed@gmail.com">
+        <span class="tlink-icon">✉️</span>
+        <div>
+          <span class="tlink-label">E-mail</span>
+          <span class="tlink-val">avoliomatheus.sed<br>@gmail.com</span>
+        </div>
+      </a>
+      <a class="tlink" href="https://linkedin.com/in/matheusavolio" target="_blank">
+        <span class="tlink-icon">💼</span>
+        <div>
+          <span class="tlink-label">LinkedIn</span>
+          <span class="tlink-val">matheusavolio</span>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="tcard">
+    <div class="tav" style="background:linear-gradient(135deg,#f472b6,#a78bfa)">G</div>
+    <div class="tname">Gabriela Nogueira Freire</div>
+    <div class="tlinks">
+      <a class="tlink" href="mailto:gabiinnog@gmail.com">
+        <span class="tlink-icon">✉️</span>
+        <div>
+          <span class="tlink-label">E-mail</span>
+          <span class="tlink-val">gabiinnog<br>@gmail.com</span>
+        </div>
+      </a>
+      <a class="tlink" href="https://linkedin.com/in/gabiinnog" target="_blank">
+        <span class="tlink-icon">💼</span>
+        <div>
+          <span class="tlink-label">LinkedIn</span>
+          <span class="tlink-val">gabiinnog</span>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="tcard">
+    <div class="tav" style="background:linear-gradient(135deg,#34d399,#38bdf8)">J</div>
+    <div class="tname">Jade Alves Prado</div>
+    <div class="tlinks">
+      <a class="tlink" href="mailto:jade.jadeprado@gmail.com">
+        <span class="tlink-icon">✉️</span>
+        <div>
+          <span class="tlink-label">E-mail</span>
+          <span class="tlink-val">jade.jadeprado<br>@gmail.com</span>
+        </div>
+      </a>
+      <a class="tlink" href="https://linkedin.com/in/jadeprado" target="_blank">
+        <span class="tlink-icon">💼</span>
+        <div>
+          <span class="tlink-label">LinkedIn</span>
+          <span class="tlink-val">jadeprado</span>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="tcard">
+    <div class="tav" style="background:linear-gradient(135deg,#fbbf24,#f87171)">O</div>
+    <div class="tname">Otavio Joaquim Fernandes</div>
+    <div class="tlinks">
+      <a class="tlink" href="mailto:otaviojoaquimf@gmail.com">
+        <span class="tlink-icon">✉️</span>
+        <div>
+          <span class="tlink-label">E-mail</span>
+          <span class="tlink-val">otaviojoaquimf<br>@gmail.com</span>
+        </div>
+      </a>
+      <a class="tlink" href="https://linkedin.com/in/otaviojfernandes" target="_blank">
+        <span class="tlink-icon">💼</span>
+        <div>
+          <span class="tlink-label">LinkedIn</span>
+          <span class="tlink-val">otaviojfernandes</span>
+        </div>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span><strong>Grupo 4</strong> · Centro Universitário Senac — Campus Santo Amaro · São Paulo, 2026</span>
+  <span><em>IA na Governança de Dados: Classificação Automatizada e Mitigação de Riscos em Ambientes Financeiros</em></span>
+</footer>
+
+</div><!-- /page -->
+
+<script>
+/* ================================================================
+   CLASSIFICADOR LOCAL — simula Legal-BERT+NER sem servidor externo
+   Funciona 100% offline no navegador
+================================================================ */
+
+// Regras de entidades (NER)
+const ENTITY_RULES = [
+  { pattern: /\b(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/gi,   tipo: 'CPF_CNPJ',              label: 'CPF/CNPJ',             cor: 'red' },
+  { pattern: /\b(\d{2}\.?\d{3}\.?\d{3}[\/]?\d{4}-?\d{2})\b/gi, tipo: 'CPF_CNPJ',       label: 'CNPJ',                 cor: 'red' },
+  { pattern: /\bdiabetes|hipertensão|câncer|HIV|aids|saúde mental|transtorno|laudo médico|prontuário|diagnóstico|CID\b/gi, tipo: 'DADO_SAUDE', label: 'Dado de Saúde', cor: 'red' },
+  { pattern: /\bbiométrico|biometria|digital|impressão digital|reconhecimento facial|íris\b/gi, tipo: 'DADO_BIOMETRICO', label: 'Dado Biométrico', cor: 'red' },
+  { pattern: /\bscore de crédito|inadimplência|histórico bancário|perfil de crédito|dados bancários|conta corrente|conta poupança\b/gi, tipo: 'DADO_FINANCEIRO', label: 'Dado Financeiro', cor: 'yellow' },
+  { pattern: /\bR\$\s?[\d.,]+\b/gi,                     tipo: 'VALOR_MONETARIO',        label: 'Valor Monetário',      cor: 'yellow' },
+  { pattern: /\bcontrato|cláusula|exclusividade|sigilo|confidencialidade|NDA\b/gi,         tipo: 'CLAUSULA_CONTRATUAL', label: 'Cláusula Contratual', cor: 'yellow' },
+  { pattern: /\bSEBI|ESMA|RBI|SEC|BACEN|Banco Central|ANPD|SUSEP|CVM|COAF\b/gi,           tipo: 'ORGAO_REGULADOR',     label: 'Órgão Regulador',    cor: 'purple' },
+  { pattern: /\buso restrito|acesso restrito|interno|confidencial|sigiloso|não divulgar\b/gi, tipo: 'RESTRICAO_ACESSO', label: 'Restrição de Acesso', cor: 'purple' },
+  { pattern: /\bpsicocomportamental|psicológico|histórico disciplinar|orientação sexual|religião|origem racial|sindical|política\b/gi, tipo: 'DADO_PESSOAL_SENSIVEL', label: 'Dado Pessoal Sensível', cor: 'red' },
+  { pattern: /\b[A-Z][a-zÀ-ú]+ [A-Z][a-zÀ-ú]+(?: [A-Z][a-zÀ-ú]+)?\b/g,                  tipo: 'NOME_PESSOA',          label: 'Nome de Pessoa',     cor: 'accent' },
+];
+
+// Regras de classificação
+const CLASSIFICATION_RULES = [
+  {
+    nivel: 'Sensível',
+    score: 96,
+    check: t => /cpf|biométric|biometria|diabetes|saúde mental|laudo|psicocomportamental|dado sensível|orientação sexual|origem racial|HIV|aids|transtorno|histórico disciplinar|prontuário/i.test(t),
+    acao: 'Bloqueio imediato do fluxo de dados + notificação automática ao DPO. Registro em log de auditoria com timestamp. Acionamento do fluxo de aprovação especial conforme art. 11 da LGPD.',
+    lgpd: ['art. 5º, II', 'art. 11', 'art. 46', 'art. 48', 'art. 52'],
+    razao: 'O texto contém dados pessoais sensíveis conforme definição expressa do art. 5º, II da LGPD — saúde, biometria, dados comportamentais ou financeiros de titulares. O nível Sensível exige bloqueio imediato e notificação ao DPO para garantir proteção proporcional ao risco de dano direto ao titular.'
+  },
+  {
+    nivel: 'Confidencial',
+    score: 91,
+    check: t => /contrato|cláusula|exclusividade|sigilo|r\$\s?[\d]|score de crédito|inadimplência|dados bancários|estratégia|proposta comercial|orçamento/i.test(t),
+    acao: 'Bloqueio do envio externo não autorizado + geração de log detalhado. Sistema solicita justificativa ao usuário. Alerta ao gestor da área para validação antes de qualquer compartilhamento.',
+    lgpd: ['art. 46', 'art. 48'],
+    razao: 'O texto contém informações estratégicas ou dados financeiros de terceiros cuja exposição não autorizada causaria dano à organização ou aos clientes. Classificado como Confidencial (A.5.12 Nível 3), exigindo bloqueio e log conforme controles ISO/IEC 27001 e art. 46 da LGPD.'
+  },
+  {
+    nivel: 'Privado',
+    score: 85,
+    check: t => /interno|restrito|backoffice|circular|procedimento|uso interno|equipe|colaborador|matrícula|funcionário/i.test(t),
+    acao: 'Alerta exibido ao usuário antes do envio externo, solicitando confirmação. Documento marcado com rótulo "PRIVADO" automaticamente. Registro de acesso em log de auditoria.',
+    lgpd: ['art. 46'],
+    razao: 'O texto é destinado a uso interno e não deve ser compartilhado externamente sem autorização. Classificado como Privado (A.5.12 Nível 2): o sistema alerta o usuário antes de qualquer transmissão externa, conforme controle A.5.13 da ISO/IEC 27001.'
+  },
+  {
+    nivel: 'Público',
+    score: 78,
+    check: () => true, // fallback
+    acao: 'Monitoramento passivo. Nenhum bloqueio aplicado. Documento liberado para circulação. Metadados registrados para rastreabilidade histórica.',
+    lgpd: ['art. 7º'],
+    razao: 'O texto não contém indicadores de restrição, dados pessoais ou informações estratégicas. Classificado como Público (A.5.12 Nível 1): monitoramento passivo é suficiente, sem necessidade de controles restritivos.'
+  }
+];
+
+// Executa NER sobre o texto
+function runNER(text) {
+  const found = [];
+  const seen = new Set();
+  for (const rule of ENTITY_RULES) {
+    const matches = [...text.matchAll(new RegExp(rule.pattern.source, rule.pattern.flags))];
+    for (const m of matches) {
+      const val = m[0].trim();
+      const key = rule.tipo + ':' + val.toLowerCase();
+      if (!seen.has(key) && val.length > 2) {
+        seen.add(key);
+        found.push({ texto: val, tipo: rule.tipo, label: rule.label, cor: rule.cor });
+      }
+    }
+  }
+  return found;
+}
+
+// Classifica o texto
+function runClassify(text, entities) {
+  for (const rule of CLASSIFICATION_RULES) {
+    if (rule.check(text)) {
+      // Ajusta confiança com base em número de entidades relevantes
+      const boost = Math.min(entities.length * 1.5, 4);
+      return { ...rule, confianca: Math.min(rule.score + boost, 99) };
+    }
+  }
+}
+
+// Calcula scores dos 4 níveis
+function buildScores(nivel, confianca) {
+  const base = { 'Público': 2, 'Privado': 5, 'Confidencial': 5, 'Sensível': 5 };
+  base[nivel] = confianca;
+  const rest = 100 - confianca;
+  const others = ['Público','Privado','Confidencial','Sensível'].filter(l => l !== nivel);
+  const weights = { 'Público': 1, 'Privado': 2, 'Confidencial': 3, 'Sensível': 4 };
+  const wsum = others.reduce((s, l) => s + weights[l], 0);
+  others.forEach(l => base[l] = Math.round(rest * (weights[l] / wsum)));
+  return base;
+}
+
+const TEXTS = [
+  "Relatório anual de sustentabilidade 2024 — disponível no site institucional para todos os stakeholders e investidores.",
+  "Circular interna nº 042/2025 — procedimento de abertura de conta pessoa jurídica. Uso restrito às equipes de backoffice.",
+  "Contrato nº 2025-1183 com XYZ Ltda, valor R$ 2.400.000,00, vigência 36 meses, com cláusula de exclusividade e sigilo.",
+  "Cliente Maria da Silva, CPF 123.456.789-00, portadora de diabetes tipo 2, score de crédito 420. Dados biométricos cadastrados.",
+  "Colaborador João P., matrícula 00892 — laudo psicocomportamental, avaliação de saúde mental e histórico disciplinar."
+];
+
+function pick(btn, idx) {
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById('txt').value = TEXTS[idx];
+}
+
+function setPipe(step) {
+  for (let i = 1; i <= 5; i++)
+    document.getElementById('p' + i).classList.toggle('on', i <= step);
+}
+
+const LCFG = {
+  'Público':      { color:'var(--green)',  icon:'🟢', dlpbg:'rgba(52,211,153,.07)' },
+  'Privado':      { color:'var(--accent)', icon:'🔵', dlpbg:'rgba(56,189,248,.07)' },
+  'Confidencial': { color:'var(--yellow)', icon:'🟡', dlpbg:'rgba(251,191,36,.07)' },
+  'Sensível':     { color:'var(--red)',    icon:'🔴', dlpbg:'rgba(248,113,113,.08)' }
+};
+
+const ECOL = {
+  red:    { bg:'rgba(248,113,113,.15)', border:'var(--red)',    fg:'var(--red)' },
+  yellow: { bg:'rgba(251,191,36,.13)',  border:'var(--yellow)', fg:'var(--yellow)' },
+  accent: { bg:'rgba(56,189,248,.13)',  border:'var(--accent)', fg:'var(--accent)' },
+  purple: { bg:'rgba(167,139,250,.13)', border:'var(--purple)', fg:'var(--purple)' },
+};
+
+function classify() {
+  const text = document.getElementById('txt').value.trim();
+  if (!text) { alert('Digite ou selecione um texto primeiro.'); return; }
+
+  // Simula processamento em etapas
+  setPipe(1);
+  setTimeout(() => setPipe(2), 300);
+  setTimeout(() => setPipe(3), 600);
+  setTimeout(() => setPipe(4), 900);
+  setTimeout(() => {
+    const entities = runNER(text);
+    const result = runClassify(text, entities);
+    const scores = buildScores(result.nivel, result.confianca);
+    setPipe(5);
+    render(result, entities, scores);
+  }, 1300);
+}
+
+function render(r, entities, scores) {
+  const cfg = LCFG[r.nivel];
+  const levels = ['Público','Privado','Confidencial','Sensível'];
+  const bcolors = [LCFG['Público'].color, LCFG['Privado'].color, LCFG['Confidencial'].color, LCFG['Sensível'].color];
+
+  const chips = entities.map(e => {
+    const c = ECOL[e.cor] || ECOL.accent;
+    return `<span class="chip" style="background:${c.bg};border-color:${c.border};color:${c.fg}">
+      <span>${e.texto}</span><span class="ct">${e.label}</span>
+    </span>`;
+  }).join('') || `<span style="font-size:12px;color:var(--sub)">Nenhuma entidade específica detectada</span>`;
+
+  const bars = levels.map((l, i) => {
+    const v = scores[l] || 0;
+    return `<div class="srow">
+      <span class="sl2">${l}</span>
+      <div class="sbg"><div class="sfill" style="width:0%;background:${bcolors[i]}" data-w="${v}%"></div></div>
+      <span class="sval">${v}%</span>
+    </div>`;
+  }).join('');
+
+  const ltags = r.lgpd.map(a => `<span class="ltag">${a}</span>`).join('');
+
+  document.getElementById('res').innerHTML = `
+    <div class="rstack">
+      <div class="chero" style="border-left-color:${cfg.color};background:${cfg.dlpbg}">
+        <span class="ch-icon">${cfg.icon}</span>
+        <div>
+          <div class="ch-lbl">CLASSIFICAÇÃO ISO/IEC 27001 · A.5.12</div>
+          <div class="ch-name" style="color:${cfg.color}">${r.nivel}</div>
+          <div class="ch-conf">Confiança do modelo: ${Math.round(r.confianca)}%</div>
+        </div>
+      </div>
+
+      <div class="rbox">
+        <div class="rbtl">🔍 Entidades detectadas pelo NER</div>
+        <div class="chips">${chips}</div>
+      </div>
+
+      <div class="rbox">
+        <div class="rbtl">📊 Probabilidade por nível</div>
+        ${bars}
+      </div>
+
+      <div class="dlpb" style="background:${cfg.dlpbg}">
+        <span style="font-size:20px;margin-top:2px;flex-shrink:0">🛡️</span>
+        <div>
+          <div class="dlp-t">Ação DLP recomendada</div>
+          <div class="dlp-d">${r.acao}</div>
+        </div>
+      </div>
+
+      <div class="rbox">
+        <div class="rbtl">💬 Raciocínio do modelo (XAI — Explicabilidade)</div>
+        <p class="reason">${r.razao}</p>
+      </div>
+
+      <div class="rbox">
+        <div class="rbtl">⚖️ Fundamentação legal</div>
+        <div class="ltags">${ltags}</div>
+      </div>
+    </div>`;
+
+  setTimeout(() => {
+    document.querySelectorAll('.sfill').forEach(b => b.style.width = b.dataset.w);
+  }, 80);
+}
+</script>
+</body>
+</html>
